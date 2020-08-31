@@ -17,7 +17,7 @@ parser.add_argument('-s', '--syslog-server',type=str, required=True, help="Syslo
 parser.add_argument('-b', '--base-url',type=str, required=True, help="Oracle CASB base url, typically https://XXXXXXXX.palerra.net")
 parser.add_argument('-k', '--access-key',type=str, required=True, help="Oracle CASB Access Key")
 parser.add_argument('-a', '--access-secret',type=str, required=True, help='Oracle CASB Access Secret')
-parser.add_argument('-t', '--time-period',type=int, required=True, help='time period of the events expressed as number of days, exp: 7 would fetch the events of the past week')
+parser.add_argument('-t', '--time-period',type=int, required=True, help='time period of the events expressed as number of hours')
 
 args = parser.parse_args()
 
@@ -49,7 +49,7 @@ def occs_init():
 
 occs_object=occs_init()
 
-startDate = arrow.now().shift(days=(-1 * args.time_period)).format('YYYY-MM-DDTHH:mm:ss.SSS')
+startDate = arrow.now().shift(hours=(-1 * args.time_period)).format('YYYY-MM-DDTHH:mm:ss.SSS')
 res = occs_object.get_risk_events(startDate)
 send_syslog(args.syslog_server,(json_to_syslog_ready(res)))
 
