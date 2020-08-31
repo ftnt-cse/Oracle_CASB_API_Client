@@ -1,0 +1,74 @@
+<!-- <14>2020-08-30T19:45:23.101489+04:00 Oracle-CASB-Cloud-Service id=c37ad8af-84ed-316f-9c6f-bd84cd949eaa|uri=/v1/events/riskevent?eventId=c33ad8af-84ed-316f-9c6f-bd84cd949e1c&applicationInstanceId=9889e0c9-e88e-434e-991d-4ca038c8ab48|appname=CLOUD_SystemD|appinstance=vfort-prod|appinstanceid=2341e0c9-e23e-434e-991d-4ca038c8ab48|snapdate=2020-08-27|title=Brute force attack for romarioaza@acme.com|category=Anomalous activity|priority=High|status=Open|createdon=2020-08-27T19:49:01.000Z|realeventtime=2020-08-27T11:55:58.000Z|Actor=romarioaza@acme.com|Action=Possible account hijack attempt|Message=Failed logins:  22. Reason: Trial & Error method to decode encrypted data i.e passwords. Strengthen the password security|Occurred=2020-08-27T11:55:58Z|Trend_name=Brute force attack risk -->
+<eventFormatRecognizer><![CDATA[\d+\:\d+\s+Oracle-CASB-Cloud-Service]]></eventFormatRecognizer>
+<parsingInstructions>
+<collectFieldsByRegex src="$_rawmsg">
+<regex><![CDATA[<:gPatSyslogPRI><_year:gPatYear>-<_mon:gPatMonNum>-<_day:gPatDay>T<_time:gPatTime>\.\d+(?:\+|\-)\d+:\d+\s+Oracle-CASB-Cloud-Service\s+<_body:gPatMesgBody>]]></regex>
+</collectFieldsByRegex>
+<collectFieldsByKeyValuePair kvsep="=" sep="|" src="$_body">
+<attrKeyMap attr="extEventId" key="id"/>
+<attrKeyMap attr="uriQuery" key="uri"/>
+<attrKeyMap attr="applicationId" key="applicationInstanceId"/>
+<attrKeyMap attr="appName" key="appname"/>
+<attrKeyMap attr="appServerInstance" key="appinstance"/>
+<attrKeyMap attr="_createdon" key="createdon"/>
+<attrKeyMap attr="eventDesc" key="title"/>
+<attrKeyMap attr="alertCategory" key="category"/>
+<attrKeyMap attr="riskName" key="priority"/>
+<attrKeyMap attr="incidentExtTicketState" key="status"/>
+<attrKeyMap attr="_realeventtime" key="realeventtime"/>
+<attrKeyMap attr="_action" key="Action"/>
+<attrKeyMap attr="actorName" key="Actor"/>
+<attrKeyMap attr="msg" key="Message"/>
+<attrKeyMap attr="compEventName" key="Trend_name"/>
+<attrKeyMap attr="oraAuditAction" key="Administrator_instructions"/>
+<attrKeyMap attr="policyId" key="Policy_ID"/>
+<attrKeyMap attr="policyName" key="Policy_name"/>
+<attrKeyMap attr="resourceType" key="Resource_type"/>
+<attrKeyMap attr="role" key="Role_code"/>
+<attrKeyMap attr="permissionRoleName" key="Role_name"/>
+<attrKeyMap attr="targetUserGrp" key="Target_group"/>
+<attrKeyMap attr="targetUser" key="Target_user"/>
+<attrKeyMap attr="accessKeyId" key="recommendationkey"/>
+<attrKeyMap attr="jobDetail" key="resolvedetails"/>
+</collectFieldsByKeyValuePair>
+<when test="exist _createdon">
+<collectFieldsByRegex src="$_createdon">
+<regex><![CDATA[<_year:gPatYear>-<_mon:gPatMonNum>-<_day:gPatDay>T<_time:gPatTime>]]></regex>
+</collectFieldsByRegex>
+<setEventAttribute attr="deviceTime">toDateTime($_mon, $_day, $_year, $_time)</setEventAttribute>
+</when>
+<when test="exist _realeventtime">
+<collectFieldsByRegex src="$_realeventtime">
+<regex><![CDATA[<_eyear:gPatYear>-<_emon:gPatMonNum>-<_eday:gPatDay>T<_etime:gPatTime>]]></regex>
+</collectFieldsByRegex>
+<setEventAttribute attr="eventTime">toDateTime($_emon, $_eday, $_eyear, $_etime)</setEventAttribute>
+</when>
+
+<setEventAttribute attr="deviceTime">toDateTime($_mon, $_day, $_year, $_time)</setEventAttribute>
+<setEventAttribute attr="eventType">Oracle-CASB-Generic</setEventAttribute>
+
+<when test="exist _action">
+<setEventAttribute attr="_eventType">replaceStringByRegex($_action, "\s+", "-")</setEventAttribute>
+<setEventAttribute attr="eventType">combineMsgId("Oracle-CASB-", $_eventType)</setEventAttribute>
+</when>
+
+
+<when test="exist compEventName">
+<setEventAttribute attr="_eventType">replaceStringByRegex($compEventName, "\s+", "-")</setEventAttribute>
+<setEventAttribute attr="eventType">combineMsgId("Oracle-CASB-", $_eventType)</setEventAttribute>
+</when>
+
+<when test="exist riskName">
+<choose>
+<when test='$riskName = "High"'>
+<setEventAttribute attr="eventSeverity">9</setEventAttribute>
+</when>
+<when test='$riskName = "Medium"'>
+<setEventAttribute attr="eventSeverity">5</setEventAttribute>
+</when>
+<when test='$riskName = "Low"'>
+<setEventAttribute attr="eventSeverity">1</setEventAttribute>
+</when>
+</choose>
+</when>
+</parsingInstructions>
