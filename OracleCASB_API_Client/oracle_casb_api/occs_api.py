@@ -20,7 +20,8 @@ CRED_TMP_FILE='/tmp/OCCS_cred.dat'
 def send_syslog(server,json_events_list):
     '''takes a list of events and send it to a syslog server'''
     syslogger = logging.getLogger('syslogger')
-    syslogger.setLevel(logging.WARNING)
+    #syslogger.setLevel(logging.WARNING)
+    syslogger.setLevel(logging.DEBUG)
     #use UDP
     handler = logging.handlers.SysLogHandler(address = (server,514),  socktype=socket.SOCK_DGRAM)
     syslogger.addHandler(handler)
@@ -35,7 +36,23 @@ def send_syslog(server,json_events_list):
     print()
     syslogger.handlers.clear()
 
-def json_to_syslog_ready(json_data):
+
+def prepare_users_risk_scores_for_syslog(json_data):
+    ''' Takes a json results and format it as a syslog ready list'''
+    events_list=[]
+    for item in json_data:
+        if 'userRiskDetails' in item:
+            user_risk_details = item['userRiskDetails']
+            if len(user_risk_details) > 0:
+                del item['userRiskDetails']
+                risk_event=item
+                for detail in user_risk_details:
+                    risk_event.update({detail['displayname'].replace(' ','_'):detail['value'].replace("'","_")})
+                item = risk_event
+        events_list.append(item)
+    return events_list
+
+def prepare_risk_events_for_syslog(json_data):
     ''' Takes a json results and format it as a syslog ready list'''
     events_list=[]
     for item in json_data:
@@ -53,8 +70,6 @@ def json_to_syslog_ready(json_data):
         events_list.append(item)
     return events_list
         
-
-    return risk_event
 
 def save_credentials(cred):
     ''' Saves authentication credentials to env '''
@@ -195,7 +210,7 @@ class OracleCasbCS(object):
                                         timeout=self.request_timeout
                                         )
             
-            #self.occs_logging.debug('REQUESTS_DUMP:\n{}'.format(dump.dump_all(response).decode('utf-8')))
+            self.occs_logging.debug('REQUESTS_DUMP:\n{}'.format(dump.dump_all(response).decode('utf-8')))
 
             if response.ok:
                 return response.json() if response.content else ''
@@ -211,20 +226,20 @@ class OracleCasbCS(object):
         except requests.exceptions.RequestException as err:
             self.occs_logging.exception("OOps: Something went wrong...",err)
 
-    def get_risk_events(self, start_date, page_size=100):
-        ''' Fetches risk events and apply pagination when required'''
+    def get_risk_events(self, start_date, page_size="100"):
+        ''' Fetches risk events and apply pagination when required. max page size : 100'''
         risk_events = []
-        max_count = 0
+        total_count = 0
         params = {
-                  'pagesize' : "100",
+                  'pagesize' : page_size,
                   'startDate' : start_date
                   }
         response = self.make_rest_call('/api/v1/events/riskevents',params)
         
-        max_count = response['maxCount']
+        total_count = response['maxCount']
         next_marker_position = response['nextMarkerPosition']
 
-        if max_count <= 100:
+        if total_count <= 100:
             return response['riskevents']
         else:
             risk_events = response['riskevents']
@@ -232,24 +247,53 @@ class OracleCasbCS(object):
                       'pagesize' : "100",
                       'markerPosition' : next_marker_position
                       }            
-            for result in range(max_count // 100):                
-                self.occs_logging.debug('call API')
+            for result in range(total_count // 100):                
                 response = self.make_rest_call('/api/v1/events/riskevents',params)
                 risk_events += response['riskevents']
                 params['markerPosition'] = response['nextMarkerPosition']
             
-            self.occs_logging.debug('Max count: {}'.format(max_count))            
+            self.occs_logging.debug('Max count: {}'.format(total_count))            
             return risk_events
 
-    def get_user_risk_score_report(self, report_name, page_size=100):
+    def get_user_risk_score_report(self, report_name='userrisk',startperiod=None,endperiod=None, page_size="100"):
         ''' Fetches user risk score report'''
-        risk_events = []
-        max_count = 0
+
+        users_risk_scores = []
+        total_count = 0
+
         params = {
-                  'pagesize' : "100"
+                  'pagesize' : page_size
                   }
+
+        if startperiod is not None:
+            params.update({'startperiod':startperiod})
+
+        if endperiod is not None:
+            params.update({'endperiod':endperiod})
+
         response = self.make_rest_call('/api/v1/reports/details/'+report_name,params)
-        return response
+       
+        total_count = response['totalCount']
+        next_marker_position = response['nextMarkerPosition']
+
+        if total_count <= 100:
+            return response['userRiskScores']
+        else:
+            users_risk_scores = response['userRiskScores']
+            params = {
+                      'pagesize' : page_size,
+                      'markerPosition' : next_marker_position
+                      }            
+            for result in range(total_count // 100):                
+                response = self.make_rest_call('/api/v1/reports/details/'+report_name,params)
+                users_risk_scores += response['userRiskScores']
+                params['markerPosition'] = response['nextMarkerPosition']
+            
+            self.occs_logging.debug('Max count: {}'.format(total_count))            
+            return users_risk_scores
+
+
+
 
 
         

@@ -26,7 +26,6 @@ logger.setLevel(logging.ERROR)
 
 
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
@@ -49,7 +48,13 @@ def occs_init():
 
 occs_object=occs_init()
 
-startDate = arrow.now().shift(hours=(-1 * args.time_period)).format('YYYY-MM-DDTHH:mm:ss.SSS')
-res = occs_object.get_risk_events(startDate)
-send_syslog(args.syslog_server,(json_to_syslog_ready(res)))
+start_date = arrow.now().shift(hours=(-1 * args.time_period)).format('YYYY-MM-DDTHH:mm:ss.SSS')
+end_date = arrow.now().format('YYYY-MM-DDTHH:mm:ss.SSS')
+
+res = occs_object.get_risk_events(start_date)
+send_syslog(args.syslog_server,(prepare_risk_events_for_syslog(res)))
+
+res = occs_object.get_user_risk_score_report('userrisk',start_date,end_date,'100')
+send_syslog(args.syslog_server,(prepare_users_risk_scores_for_syslog(res)))
+
 

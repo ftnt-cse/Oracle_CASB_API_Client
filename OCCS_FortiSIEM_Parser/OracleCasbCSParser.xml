@@ -1,4 +1,6 @@
-<!-- <14>2020-08-30T19:45:23.101489+04:00 Oracle-CASB-Cloud-Service id=c37ad8af-84ed-316f-9c6f-bd84cd949eaa|uri=/v1/events/riskevent?eventId=c33ad8af-84ed-316f-9c6f-bd84cd949e1c&applicationInstanceId=9889e0c9-e88e-434e-991d-4ca038c8ab48|appname=CLOUD_SystemD|appinstance=vfort-prod|appinstanceid=2341e0c9-e23e-434e-991d-4ca038c8ab48|snapdate=2020-08-27|title=Brute force attack for romarioaza@acme.com|category=Anomalous activity|priority=High|status=Open|createdon=2020-08-27T19:49:01.000Z|realeventtime=2020-08-27T11:55:58.000Z|Actor=romarioaza@acme.com|Action=Possible account hijack attempt|Message=Failed logins:  22. Reason: Trial & Error method to decode encrypted data i.e passwords. Strengthen the password security|Occurred=2020-08-27T11:55:58Z|Trend_name=Brute force attack risk -->
+<!-- <14>2020-08-30T19:45:23.101489+04:00 Oracle-CASB-Cloud-Service id=c37ad8af-84ed-316f-9c6f-bd84cd949eaa|uri=/v1/events/riskevent?eventId=c33ad8af-84ed-316f-9c6f-bd84cd949e1c&applicationInstanceId=9889e0c9-e88e-434e-991d-4ca038c8ab48|appname=CLOUD_SystemD|appinstance=vfort-prod|appinstanceid=2341e0c9-e23e-434e-991d-4ca038c8ab48|snapdate=2020-08-27|title=Brute force attack for romarioaza@acme.com|category=Anomalous activity|priority=High|status=Open|createdon=2020-08-27T19:49:01.000Z|realeventtime=2020-08-27T11:55:58.000Z|Actor=romarioaza@acme.com|Action=Possible account hijack attempt|Message=Failed logins:  22. Reason: Trial & Error method to decode encrypted data i.e passwords. Strengthen the password security|Occurred=2020-08-27T11:55:58Z|Trend_name=Brute force attack risk 
+
+<11>2020-09-01T21:37:55.210069+04:00 Oracle-CASB-Cloud-Service appname=AppMagazine|appinstance=perol-prod|appInstanceId=9843e234-e23e-434e-991d-4ca444c4ab45|rowId=BALIUROV132|Risk_Level=Normal|User_name=barista@acme.com|Maximum_Risk_Score=0.0|Peer_Group={ "peergroup":"other", "peergroupDisplayName":"Other"}|Reasons=["9231e123-e23e-434e-991d-4ca34c82134", "2020-09-01T17:37:42Z", {"No risk factors":"No risk factors"}]|Detected_Date=2020-08-09T00:00:00Z|ReasonsAverage={}|ReasonsCounts={}|Detected_Date_ISOFormat=2020-08-09T00:00:00Z-->
 <eventFormatRecognizer><![CDATA[\d+\:\d+\s+Oracle-CASB-Cloud-Service]]></eventFormatRecognizer>
 <parsingInstructions>
 <collectFieldsByRegex src="$_rawmsg">
@@ -30,7 +32,21 @@
 <attrKeyMap attr="targetUser" key="Target_user"/>
 <attrKeyMap attr="accessKeyId" key="recommendationkey"/>
 <attrKeyMap attr="jobDetail" key="resolvedetails"/>
+<attrKeyMap attr="_detectedDate" key="Detected_Date"/>
+<attrKeyMap attr="auditScore" key="Maximum_Risk_Score"/>
+<attrKeyMap attr="srcUserGrp" key="Peer_Group"/>
+<attrKeyMap attr="_eventDesc" key="Reasons"/>
+<attrKeyMap attr="_ReasonsAverage" key="ReasonsAverage"/>
+<attrKeyMap attr="_ReasonsCounts" key="ReasonsCounts"/>
+<attrKeyMap attr="_Risk_Level" key="Risk_Level"/>
+<attrKeyMap attr="user" key="User_name"/>
 </collectFieldsByKeyValuePair>
+<when test="exist _detectedDate">
+<collectFieldsByRegex src="$_detectedDate">
+<regex><![CDATA[<_year:gPatYear>-<_mon:gPatMonNum>-<_day:gPatDay>T<_time:gPatTime>]]></regex>
+</collectFieldsByRegex>
+<setEventAttribute attr="deviceTime">toDateTime($_mon, $_day, $_year, $_time)</setEventAttribute>
+</when>
 <when test="exist _createdon">
 <collectFieldsByRegex src="$_createdon">
 <regex><![CDATA[<_year:gPatYear>-<_mon:gPatMonNum>-<_day:gPatDay>T<_time:gPatTime>]]></regex>
@@ -43,21 +59,20 @@
 </collectFieldsByRegex>
 <setEventAttribute attr="eventTime">toDateTime($_emon, $_eday, $_eyear, $_etime)</setEventAttribute>
 </when>
-
 <setEventAttribute attr="deviceTime">toDateTime($_mon, $_day, $_year, $_time)</setEventAttribute>
 <setEventAttribute attr="eventType">Oracle-CASB-Generic</setEventAttribute>
-
 <when test="exist _action">
 <setEventAttribute attr="_eventType">replaceStringByRegex($_action, "\s+", "-")</setEventAttribute>
 <setEventAttribute attr="eventType">combineMsgId("Oracle-CASB-", $_eventType)</setEventAttribute>
 </when>
-
-
 <when test="exist compEventName">
 <setEventAttribute attr="_eventType">replaceStringByRegex($compEventName, "\s+", "-")</setEventAttribute>
 <setEventAttribute attr="eventType">combineMsgId("Oracle-CASB-", $_eventType)</setEventAttribute>
 </when>
-
+<when test="exist _eventDesc">
+<setEventAttribute attr="eventDesc">combineMsgId($_eventDesc, $_ReasonsAverage)</setEventAttribute>
+<setEventAttribute attr="eventDesc">combineMsgId($eventDesc, $_ReasonsCounts)</setEventAttribute>
+</when>
 <when test="exist riskName">
 <choose>
 <when test='$riskName = "High"'>
@@ -67,6 +82,20 @@
 <setEventAttribute attr="eventSeverity">5</setEventAttribute>
 </when>
 <when test='$riskName = "Low"'>
+<setEventAttribute attr="eventSeverity">1</setEventAttribute>
+</when>
+</choose>
+</when>
+<when test="exist _Risk_Level">
+<setEventAttribute attr="eventType">combineMsgId("Oracle-CASB-", "user-risk-score-report")</setEventAttribute>
+<choose>
+<when test='$_Risk_Level = "High"'>
+<setEventAttribute attr="eventSeverity">9</setEventAttribute>
+</when>
+<when test='$_Risk_Level = "Normal"'>
+<setEventAttribute attr="eventSeverity">5</setEventAttribute>
+</when>
+<when test='$_Risk_Level = "Low"'>
 <setEventAttribute attr="eventSeverity">1</setEventAttribute>
 </when>
 </choose>
